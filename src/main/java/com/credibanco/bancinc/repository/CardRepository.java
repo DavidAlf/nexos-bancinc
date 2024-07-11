@@ -13,5 +13,5 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     Optional<Card> findByNumProductCardAndNumRandomCard(@Param(("numProductCard")) int numProductCard,
             @Param(("numRandomCard")) long numRandomCard);
 
-    List<Card> findByCustomerId(@Param(("customer_id")) long customer_id);
+    List<Card> findByCustomerId(@Param(("customerID")) long customerID);
 }

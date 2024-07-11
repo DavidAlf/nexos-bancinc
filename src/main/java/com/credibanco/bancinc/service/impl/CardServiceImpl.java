@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import com.credibanco.bancinc.dto.CardDTO;
 import com.credibanco.bancinc.dto.ResponseDTO;
 import com.credibanco.bancinc.dto.ResponseErrorDTO;
 import com.credibanco.bancinc.exeptions.ResourceNotFundExcepton;
@@ -51,10 +52,8 @@ public class CardServiceImpl implements CardService {
                                 card.getNumRandomCard()));
             }
             cardRepository.save(card);
-            Card cardUpdate = card;
-            cardUpdate.setCardNumber(String.format("%06d%010d", card.getNumProductCard(), card.getNumRandomCard()));
 
-            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.CREATED.value(), cardUpdate);
+            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.CREATED.value(), card);
 
             return ResponseEntity.ok(responseDTO);
 
@@ -72,8 +71,9 @@ public class CardServiceImpl implements CardService {
         log.info("[CardServiceImpl] -> getCard");
         try {
             Optional<Card> card = cardRepository.findById(cardID);
+            CardDTO cardDTO = new CardDTO(card.get());
 
-            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), card);
+            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), cardDTO);
 
             return ResponseEntity.ok(responseDTO);
 
@@ -105,13 +105,11 @@ public class CardServiceImpl implements CardService {
             Card cardUpdating = cardSaved.get();
             cardUpdating.setStatus("enable");
 
-            Card cardUpdate = cardUpdating;
-            cardUpdate.setCardNumber(
-                    String.format("%06d%010d", cardUpdating.getNumProductCard(), cardUpdating.getNumRandomCard()));
+            CardDTO cardDTO = new CardDTO(cardUpdating);
 
             cardRepository.save(cardUpdating);
 
-            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), cardUpdate);
+            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), cardDTO);
 
             return ResponseEntity.ok(responseDTO);
 
@@ -127,7 +125,7 @@ public class CardServiceImpl implements CardService {
     @Override
     public ResponseEntity<ResponseDTO> deleteCard(String cardNumber) {
         log.info("[CardServiceImpl] -> deleteCard");
-        String msn = "";
+        String msn = "Error en la eliminacion de la targeta";
         try {
             String numProductCard = cardNumber.substring(0, 6);
             String numRandomCard = cardNumber.substring(6, 16);
@@ -173,13 +171,10 @@ public class CardServiceImpl implements CardService {
             Card cardUpdating = cardSaved.get();
             cardUpdating.setBalance(balance);
 
-            Card cardUpdate = cardUpdating;
-            cardUpdate.setCardNumber(
-                    String.format("%06d%010d", cardUpdating.getNumProductCard(), cardUpdating.getNumRandomCard()));
-
+            CardDTO cardDTO = new CardDTO(cardUpdating);
             cardRepository.save(cardUpdating);
 
-            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), cardUpdate);
+            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), cardDTO);
 
             return ResponseEntity.ok(responseDTO);
 

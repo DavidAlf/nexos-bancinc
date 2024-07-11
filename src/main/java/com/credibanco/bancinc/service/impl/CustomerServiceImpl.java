@@ -1,14 +1,15 @@
 package com.credibanco.bancinc.service.impl;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import com.credibanco.bancinc.dto.CustomerDTO;
 import com.credibanco.bancinc.dto.ResponseDTO;
 import com.credibanco.bancinc.dto.ResponseErrorDTO;
 import com.credibanco.bancinc.exeptions.ResourceNotFundExcepton;
@@ -43,14 +44,16 @@ public class CustomerServiceImpl implements CustomerService {
 
             customerRepository.save(customer);
 
-            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.CREATED.value(), customer);
+            CustomerDTO customerDTO = new CustomerDTO(customer);
+
+            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.CREATED.value(), customerDTO);
 
             return ResponseEntity.ok(responseDTO);
 
         } catch (Exception e) {
             log.error("Error saveCustomer " + e.getMessage());
             ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    new Customer(), "Error guardando el cliente");
+                    null, "Error guardando el cliente");
 
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
         }
@@ -61,15 +64,17 @@ public class CustomerServiceImpl implements CustomerService {
         log.info("[CustomerServiceImpl] -> listCustomers");
         try {
             List<Customer> listCustomers = customerRepository.findAll();
+            List<CustomerDTO> listCustomersDTO = listCustomers.stream().map(customer -> new CustomerDTO(customer))
+                    .collect(Collectors.toList());
 
-            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), listCustomers);
+            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), listCustomersDTO);
 
             return ResponseEntity.ok(responseDTO);
 
         } catch (Exception e) {
             log.error("Error saveCustomer " + e.getMessage());
             ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    new ArrayList<Customer>(), "Error listando el clientes");
+                    null, "Error listando el clientes");
 
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
         }
@@ -81,14 +86,16 @@ public class CustomerServiceImpl implements CustomerService {
         try {
             Optional<Customer> customer = customerRepository.findById(customerID);
 
-            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), customer);
+            CustomerDTO customerDTO = new CustomerDTO(customer.get());
+
+            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), customerDTO);
 
             return ResponseEntity.ok(responseDTO);
 
         } catch (Exception e) {
             log.error("Error getCustomer " + e.getMessage());
             ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    new Customer(), "Error buscando el cliente " + customerID);
+                    null, "Error buscando el cliente " + customerID);
 
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
         }
@@ -100,14 +107,16 @@ public class CustomerServiceImpl implements CustomerService {
         try {
             Optional<Customer> customer = customerRepository.findByEmail(email);
 
-            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), customer);
+            CustomerDTO customerDTO = new CustomerDTO(customer.get());
+
+            ResponseDTO responseDTO = new ResponseDTO(HttpStatus.OK.value(), customerDTO);
 
             return ResponseEntity.ok(responseDTO);
 
         } catch (Exception e) {
             log.error("Error saveCustomer " + e.getMessage());
             ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    new Customer(), "Error buscando el cliente " + email);
+                    null, "Error buscando el cliente " + email);
 
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
         }

@@ -63,7 +63,6 @@ public class CustomerServiceTest {
                 .build();
     }
 
-    
     @Test
     void testSaveCustomer() {
         // > Given
@@ -77,6 +76,7 @@ public class CustomerServiceTest {
         assertThat(customerSave).isNotNull();
     }
 
+    @SuppressWarnings("null")
     @Test
     void testSaveCustomer_ExceptionCaught() {
         // Given
@@ -94,7 +94,7 @@ public class CustomerServiceTest {
         assert (((ResponseErrorDTO) response.getBody()).getErrorMsn().equals("Error guardando el cliente"));
     }
 
-    
+    @SuppressWarnings("null")
     @Test
     void testListCustomers() {
         // >Given
@@ -126,6 +126,7 @@ public class CustomerServiceTest {
 
     }
 
+    @SuppressWarnings("null")
     @Test
     void testListCustomersEmpty() {
         // >Given
@@ -147,6 +148,7 @@ public class CustomerServiceTest {
 
     }
 
+    @SuppressWarnings("null")
     @Test
     void testListCustomers_Exception() {
         // Given
@@ -162,7 +164,6 @@ public class CustomerServiceTest {
         assert (((ResponseErrorDTO) response.getBody()).getErrorMsn().equals("Error listando el clientes"));
     }
 
-    
     @Test
     void testGetDataByID() {
         // >Given
@@ -175,6 +176,7 @@ public class CustomerServiceTest {
         assertThat(customerSave).isNotNull();
     }
 
+    @SuppressWarnings("null")
     @Test
     void testGetCustomerById_Exception() {
         // Given
@@ -192,7 +194,6 @@ public class CustomerServiceTest {
         assert (responseError.getErrorMsn().equals("Error buscando el cliente " + customerID));
     }
 
-    
     @Test
     void testGetDataByEmail() {
         // >Given
@@ -205,6 +206,7 @@ public class CustomerServiceTest {
         assertThat(customerSave).isNotNull();
     }
 
+    @SuppressWarnings("null")
     @Test
     void testGetCustomerByEmail_Exception() {
         // Given
@@ -235,6 +237,7 @@ public class CustomerServiceTest {
         verify(customerRepository, times(1)).deleteById(customerId);
     }
 
+    @SuppressWarnings("null")
     @Test
     void testDeleteCustomer_CustomerNotFound() {
         // Given
@@ -255,6 +258,7 @@ public class CustomerServiceTest {
         assertEquals("El id del cliente no existe: " + customerID, responseError.getErrorMsn());
     }
 
+    @SuppressWarnings("null")
     @Test
     void testDeleteCustomer_CustomerHasCards() {
         // Given

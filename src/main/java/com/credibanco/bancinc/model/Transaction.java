@@ -39,4 +39,7 @@ public class Transaction {
 
     @Column(nullable = false, length = 10)
     private String status;
+
+    @Column(nullable = false)
+    private int price;
 }

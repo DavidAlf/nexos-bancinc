@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.credibanco.bancinc.dto.RequestDTO;
+import com.credibanco.bancinc.dto.CardDTO;
 import com.credibanco.bancinc.dto.ResponseDTO;
 import com.credibanco.bancinc.dto.ResponseErrorDTO;
 import com.credibanco.bancinc.model.Card;
@@ -30,6 +30,7 @@ public class CardController {
     @Autowired
     private CardService cardService;
 
+    @SuppressWarnings("null")
     @GetMapping("/{productId}/number")
     public ResponseEntity<ResponseDTO> getCardById(@PathVariable("productId") int productId) {
         log.info("[CardController] -> getCardById [" + productId + "]");
@@ -56,7 +57,7 @@ public class CardController {
 
     @PostMapping("/enroll")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<ResponseDTO> enableCard(@RequestBody RequestDTO cardDTO) {
+    public ResponseEntity<ResponseDTO> enableCard(@RequestBody CardDTO cardDTO) {
         log.info("[CardController] -> enableCard [" + cardDTO.getCardId() + "]");
 
         String cardIdStr = cardDTO.getCardId();
@@ -67,6 +68,7 @@ public class CardController {
         }
 
         return cardService.enableCard(cardIdStr);
+
     }
 
     @DeleteMapping("/{cardId}")
@@ -78,7 +80,7 @@ public class CardController {
 
     @PostMapping("/balance")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<ResponseDTO> updateBalance(@RequestBody RequestDTO cardDTO) {
+    public ResponseEntity<ResponseDTO> updateBalance(@RequestBody CardDTO cardDTO) {
         log.info("[CardController] -> updateBalance [" + cardDTO.getCardId() + "]");
 
         String cardIdStr = cardDTO.getCardId();
@@ -88,14 +90,12 @@ public class CardController {
                             "ID de tarjeta debe tener exactamente 16 dígitos numéricos"));
         }
 
-        if (cardDTO.getBalance() == null || cardDTO.getBalance().isEmpty()) {
+        if (cardDTO.getBalance() <= 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseDTO(HttpStatus.BAD_REQUEST.value(),
-                            "Debe insertar el monto de la tarjeta [blanace]"));
+                            "Debe insertar el monto de la tarjeta positivo [blanace]"));
         }
 
-        int balance = Integer.parseInt(cardDTO.getBalance());
-
-        return cardService.updateBalance(cardIdStr, balance);
+        return cardService.updateBalance(cardIdStr, cardDTO.getBalance());
     }
 }

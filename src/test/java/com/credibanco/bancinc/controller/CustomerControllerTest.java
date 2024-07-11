@@ -61,7 +61,7 @@ public class CustomerControllerTest {
                 });
 
                 // > When
-                ResultActions response = mockMvc.perform(post("/api/customer")
+                ResultActions response = mockMvc.perform(post("/customer")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(customer)));
 
@@ -87,7 +87,7 @@ public class CustomerControllerTest {
                 given(customerService.listCustomers()).willReturn(ResponseEntity.ok(responseDTO));
 
                 // > When
-                ResultActions response = mockMvc.perform(get("/api/customer"));
+                ResultActions response = mockMvc.perform(get("/customer"));
 
                 // > Then
                 response.andExpect(status().isOk())
@@ -105,7 +105,7 @@ public class CustomerControllerTest {
                 given(customerService.getCustomerById(customerID)).willReturn(ResponseEntity.ok(responseDTO));
 
                 // >When
-                ResultActions response = mockMvc.perform(get("/api/customer/{customerID}", customerID));
+                ResultActions response = mockMvc.perform(get("/customer/{customerID}", customerID));
 
                 // >Then
                 response.andExpect(status().isOk())
@@ -125,7 +125,7 @@ public class CustomerControllerTest {
                 given(customerService.getCustomerByEmail(customerEmail)).willReturn(ResponseEntity.ok(responseDTO));
 
                 // >When
-                ResultActions response = mockMvc.perform(get("/api/customer/find")
+                ResultActions response = mockMvc.perform(get("/customer/find")
                                 .param("email", customerEmail)
                                 .contentType(MediaType.APPLICATION_JSON));
 
@@ -146,7 +146,7 @@ public class CustomerControllerTest {
                 given(customerService.deleteCustomer(customerID)).willReturn(ResponseEntity.ok(responseDTO));
 
                 // > When
-                ResultActions response = mockMvc.perform(delete("/api/customer/{customerID}", customerID)
+                ResultActions response = mockMvc.perform(delete("/customer/{customerID}", customerID)
                                 .contentType(MediaType.APPLICATION_JSON));
 
                 // > Then
