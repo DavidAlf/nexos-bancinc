@@ -35,19 +35,12 @@ public class CardController {
     public ResponseEntity<ResponseDTO> getCardById(@PathVariable("productId") int productId) {
         log.info("[CardController] -> getCardById [" + productId + "]");
 
-        if (String.valueOf(productId).length() != 6) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseErrorDTO(HttpStatus.BAD_REQUEST.value(),
-                            null, "El número de producto debe tener exactamente 6 dígitos: " + productId));
-        }
-
         ResponseEntity<ResponseDTO> cardDTO = cardService.saveCard(productId);
 
-        if (cardDTO.getStatusCode().equals(HttpStatus.NOT_FOUND) ||
-                cardDTO.getBody().getData() == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                            null, "El numero de tarjeta no existe: " + productId));
+        if (!cardDTO.getStatusCode().equals(HttpStatus.CREATED)) {
+            return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE)
+                    .body(new ResponseErrorDTO(HttpStatus.NOT_ACCEPTABLE.value(),
+                            null, "El numero de tarjeta no se creo: " + productId));
         }
 
         Card responseData = (Card) cardDTO.getBody().getData();
@@ -56,18 +49,11 @@ public class CardController {
     }
 
     @PostMapping("/enroll")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<ResponseDTO> enableCard(@RequestBody CardDTO cardDTO) {
-        log.info("[CardController] -> enableCard [" + cardDTO.getCardId() + "]");
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ResponseEntity<ResponseDTO> enableCard(@RequestBody CardDTO request) {
+        log.info("[CardController] -> enableCard [" + request.getCardId() + "]");
 
-        String cardIdStr = cardDTO.getCardId();
-        if (cardIdStr == null || cardIdStr.length() != 16 || !cardIdStr.matches("\\d+")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseDTO(HttpStatus.BAD_REQUEST.value(),
-                            "ID de tarjeta debe tener exactamente 16 dígitos numéricos"));
-        }
-
-        return cardService.enableCard(cardIdStr);
+        return cardService.enableCard(request);
 
     }
 
@@ -79,23 +65,10 @@ public class CardController {
     }
 
     @PostMapping("/balance")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<ResponseDTO> updateBalance(@RequestBody CardDTO cardDTO) {
-        log.info("[CardController] -> updateBalance [" + cardDTO.getCardId() + "]");
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ResponseEntity<ResponseDTO> updateBalance(@RequestBody CardDTO request) {
+        log.info("[CardController] -> updateBalance [" + request.getCardId() + "]");
 
-        String cardIdStr = cardDTO.getCardId();
-        if (cardIdStr == null || cardIdStr.length() != 16 || !cardIdStr.matches("\\d+")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseDTO(HttpStatus.BAD_REQUEST.value(),
-                            "ID de tarjeta debe tener exactamente 16 dígitos numéricos"));
-        }
-
-        if (cardDTO.getBalance() <= 0) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseDTO(HttpStatus.BAD_REQUEST.value(),
-                            "Debe insertar el monto de la tarjeta positivo [blanace]"));
-        }
-
-        return cardService.updateBalance(cardIdStr, cardDTO.getBalance());
+        return cardService.updateBalance(request);
     }
 }

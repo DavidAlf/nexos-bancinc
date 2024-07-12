@@ -11,9 +11,7 @@ import org.springframework.stereotype.Service;
 import com.credibanco.bancinc.dto.CardDTO;
 import com.credibanco.bancinc.dto.ResponseDTO;
 import com.credibanco.bancinc.dto.ResponseErrorDTO;
-import com.credibanco.bancinc.exeptions.ResourceNotFundExcepton;
 import com.credibanco.bancinc.model.Card;
-import com.credibanco.bancinc.model.Customer;
 import com.credibanco.bancinc.repository.CardRepository;
 import com.credibanco.bancinc.service.CardService;
 import com.credibanco.bancinc.utils.UniqueNumberGenerator;
@@ -30,14 +28,24 @@ public class CardServiceImpl implements CardService {
     private UniqueNumberGenerator numRandomCard;
 
     @Override
-    public ResponseEntity<ResponseDTO> saveCard(int numProductCard) {
+    public ResponseEntity<ResponseDTO> saveCard(int productId) {
         log.info("[CardServiceImpl] -> saveCard");
+        String msnError = "Error en el consumo saveCard";
+        HttpStatus codeError = HttpStatus.NOT_FOUND;
 
         try {
             numRandomCard = new UniqueNumberGenerator();
 
+            if (String.valueOf(productId).length() != 6) {
+                msnError = "El número de producto debe tener exactamente 6 dígitos: " + productId;
+                codeError = HttpStatus.BAD_REQUEST;
+
+                return ResponseEntity.status(codeError)
+                        .body(new ResponseErrorDTO(codeError.value(), null, msnError));
+            }
+
             Card card = Card.builder()
-                    .numProductCard(numProductCard)
+                    .numProductCard(productId)
                     .numRandomCard(numRandomCard.generateUniqueNumber())
                     .expDate(LocalDate.now().plusYears(1))
                     .status("disable")
@@ -47,28 +55,31 @@ public class CardServiceImpl implements CardService {
                     card.getNumRandomCard());
 
             if (cardSaved.isPresent()) {
-                throw new ResourceNotFundExcepton(
-                        "El numero de tarjeta ya existe: " + String.format("%d%d", card.getNumProductCard(),
-                                card.getNumRandomCard()));
+                codeError = HttpStatus.NOT_ACCEPTABLE;
+                msnError = "El numero de tarjeta ya existe: " + String.format("%d%d", card.getNumProductCard(),
+                        card.getNumRandomCard());
+                // throw new ResourceNotFundExcepton(msnError);
+                return ResponseEntity.status(codeError).body(new ResponseErrorDTO(codeError.value(), null, msnError));
             }
             cardRepository.save(card);
 
             ResponseDTO responseDTO = new ResponseDTO(HttpStatus.CREATED.value(), card);
 
-            return ResponseEntity.ok(responseDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
 
         } catch (Exception e) {
             log.error("Error saveCard " + e.getMessage());
-            ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    new Customer(), "Error guardando la tarjeta");
+            ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(codeError.value(), null,
+                    "Error guardando la tarjeta");
 
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
+            return ResponseEntity.status(codeError).body(responseErrorDTO);
         }
     }
 
     @Override
     public ResponseEntity<ResponseDTO> getCardById(long cardID) {
         log.info("[CardServiceImpl] -> getCard");
+
         try {
             Optional<Card> card = cardRepository.findById(cardID);
             CardDTO cardDTO = new CardDTO(card.get());
@@ -80,26 +91,38 @@ public class CardServiceImpl implements CardService {
         } catch (Exception e) {
             log.error("Error getCard " + e.getMessage());
             ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    new Customer(), "Error la tarjeta " + cardID);
+                    null, "Error la tarjeta " + cardID);
 
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
         }
     }
 
     @Override
-    public ResponseEntity<ResponseDTO> enableCard(String cardNumber) {
+    public ResponseEntity<ResponseDTO> enableCard(CardDTO request) {
         log.info("[CardServiceImpl] -> enableCard");
+        String msnError = "Error en el consumo enableCard";
+        HttpStatus codeError = HttpStatus.NOT_FOUND;
         try {
 
-            String numProductCard = cardNumber.substring(0, 6);
-            String numRandomCard = cardNumber.substring(6, 16);
+            if (request.getCardId() == null || request.getCardId().length() != 16
+                    || !request.getCardId().matches("\\d+")) {
+                msnError = "ID de tarjeta debe tener exactamente 16 dígitos numéricos";
+                codeError = HttpStatus.BAD_REQUEST;
+
+                return ResponseEntity.status(codeError).body(new ResponseErrorDTO(codeError.value(), null, msnError));
+            }
+
+            String numProductCard = request.getCardId().substring(0, 6);
+            String numRandomCard = request.getCardId().substring(6, 16);
 
             Optional<Card> cardSaved = cardRepository.findByNumProductCardAndNumRandomCard(
                     Integer.parseInt(numProductCard), Long.parseLong(numRandomCard));
 
             if (!cardSaved.isPresent()) {
-                throw new ResourceNotFundExcepton(
-                        "El numero de tarjeta no existe: " + cardNumber);
+                msnError = "El numero de tarjeta no existe: " + request.getCardId();
+                codeError = HttpStatus.NOT_FOUND;
+
+                return ResponseEntity.status(codeError).body(new ResponseErrorDTO(codeError.value(), null, msnError));
             }
 
             Card cardUpdating = cardSaved.get();
@@ -115,18 +138,26 @@ public class CardServiceImpl implements CardService {
 
         } catch (Exception e) {
             log.error("Error enableCard " + e.getMessage());
-            ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    null, "El numero de tarjeta no existe: " + cardNumber);
+            ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(codeError.value(), null, msnError);
 
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
+            return ResponseEntity.status(codeError).body(responseErrorDTO);
         }
     }
 
     @Override
     public ResponseEntity<ResponseDTO> deleteCard(String cardNumber) {
         log.info("[CardServiceImpl] -> deleteCard");
-        String msn = "Error en la eliminacion de la targeta";
+        String msnError = "Error en el consumo deleteCard";
+        HttpStatus codeError = HttpStatus.NOT_FOUND;
         try {
+
+            if (cardNumber == null || cardNumber.length() != 16 || !cardNumber.matches("\\d+")) {
+                msnError = "ID de tarjeta debe tener exactamente 16 dígitos numéricos";
+                codeError = HttpStatus.BAD_REQUEST;
+
+                return ResponseEntity.status(codeError).body(new ResponseErrorDTO(codeError.value(), null, msnError));
+            }
+
             String numProductCard = cardNumber.substring(0, 6);
             String numRandomCard = cardNumber.substring(6, 16);
 
@@ -134,8 +165,10 @@ public class CardServiceImpl implements CardService {
                     Integer.parseInt(numProductCard), Long.parseLong(numRandomCard));
 
             if (!card.isPresent()) {
-                msn = "El id de la tarjeta no existe: " + cardNumber;
-                throw new ResourceNotFundExcepton(msn);
+                msnError = "El numero de la tarjeta no existe: " + cardNumber;
+                codeError = HttpStatus.NOT_FOUND;
+
+                return ResponseEntity.status(codeError).body(new ResponseErrorDTO(codeError.value(), null, msnError));
             }
 
             cardRepository.deleteById(card.get().getId());
@@ -146,30 +179,50 @@ public class CardServiceImpl implements CardService {
 
         } catch (Exception e) {
             log.error("Error deleteCard " + e.getMessage());
-            ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    null, msn);
+            ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(codeError.value(), null, msnError);
 
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
+            return ResponseEntity.status(codeError).body(responseErrorDTO);
         }
     }
 
     @Override
-    public ResponseEntity<ResponseDTO> updateBalance(String cardNumber, int balance) {
+    public ResponseEntity<ResponseDTO> updateBalance(CardDTO request) {
         log.info("[CardServiceImpl] -> updateBalance");
+        String msnError = "Error en el consumo updateBalance";
+        HttpStatus codeError = HttpStatus.NOT_FOUND;
+
         try {
-            String numProductCard = cardNumber.substring(0, 6);
-            String numRandomCard = cardNumber.substring(6, 16);
+
+            if (request.getCardId() == null || request.getCardId().length() != 16
+                    || !request.getCardId().matches("\\d+")) {
+                msnError = "ID de tarjeta debe tener exactamente 16 dígitos numéricos";
+                codeError = HttpStatus.BAD_REQUEST;
+
+                return ResponseEntity.status(codeError).body(new ResponseErrorDTO(codeError.value(), null, msnError));
+            }
+
+            if (request.getBalance() <= 0) {
+                msnError = "Debe insertar el monto de la tarjeta positivo [blanace]";
+                codeError = HttpStatus.BAD_REQUEST;
+
+                return ResponseEntity.status(codeError).body(new ResponseErrorDTO(codeError.value(), null, msnError));
+            }
+
+            String numProductCard = request.getCardId().substring(0, 6);
+            String numRandomCard = request.getCardId().substring(6, 16);
 
             Optional<Card> cardSaved = cardRepository.findByNumProductCardAndNumRandomCard(
                     Integer.parseInt(numProductCard), Long.parseLong(numRandomCard));
 
             if (!cardSaved.isPresent()) {
-                throw new ResourceNotFundExcepton(
-                        "El numero de tarjeta no existe: " + cardNumber);
+                msnError = "El numero de tarjeta no existe: " + request.getCardId();
+                codeError = HttpStatus.NOT_FOUND;
+
+                return ResponseEntity.status(codeError).body(new ResponseErrorDTO(codeError.value(), null, msnError));
             }
 
             Card cardUpdating = cardSaved.get();
-            cardUpdating.setBalance(balance);
+            cardUpdating.setBalance(request.getBalance());
 
             CardDTO cardDTO = new CardDTO(cardUpdating);
             cardRepository.save(cardUpdating);
@@ -180,10 +233,10 @@ public class CardServiceImpl implements CardService {
 
         } catch (Exception e) {
             log.error("Error updateBalance " + e.getMessage());
-            ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(HttpStatus.NOT_FOUND.value(),
-                    null, "El numero de tarjeta no existe: " + cardNumber);
+            ResponseErrorDTO responseErrorDTO = new ResponseErrorDTO(codeError.value(), null, msnError);
 
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseErrorDTO);
+            return ResponseEntity.status(codeError).body(responseErrorDTO);
         }
     }
+
 }

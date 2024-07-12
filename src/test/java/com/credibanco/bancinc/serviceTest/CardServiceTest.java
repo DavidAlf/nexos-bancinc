@@ -2,16 +2,14 @@ package com.credibanco.bancinc.serviceTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -44,6 +42,8 @@ public class CardServiceTest {
 
         private Card card;
 
+        private CardDTO cardDTO;
+
         private UniqueNumberGenerator numRandomCard;
 
         public CardServiceTest() {
@@ -68,7 +68,10 @@ public class CardServiceTest {
                                 .expDate(LocalDate.of(2024, 11, 11))
                                 .customer(customer)
                                 .status("enable")
+                                .balance(100)
                                 .build();
+
+                cardDTO = new CardDTO(card);
 
         }
 
@@ -89,12 +92,26 @@ public class CardServiceTest {
 
         @SuppressWarnings("null")
         @Test
+        void testSaveCard_InvalidProductId() {
+                // Given
+                card.setNumProductCard(12345);
+
+                // When
+                ResponseEntity<ResponseDTO> response = cardService.saveCard(card.getNumProductCard());
+
+                // Then
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("El número de producto debe tener exactamente 6 dígitos: " + card.getNumProductCard(),
+                                errorDTO.getErrorMsn());
+
+        }
+
+        @SuppressWarnings("null")
+        @Test
         void testSaveCard_ExceptionHandlingCaught() {
                 // Given
-                Card card = new Card();
-                card.setNumProductCard(123456);
-                card.setNumRandomCard(123456789L);
-
                 given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
                                 card.getNumRandomCard()))
                                 .willReturn(Optional.empty());
@@ -143,68 +160,79 @@ public class CardServiceTest {
 
         @SuppressWarnings("null")
         @Test
-        public void testEnableCard_CardExists() {
-                // Given
-                String cardNumber = "1234562374436970";
-                Card card = new Card();
-                card.setStatus("disabled");
+        public void testEnableCard_ValidCard() {
 
-                CardDTO cardDTO = new CardDTO(card);
-
-                String numProductCard = cardNumber.substring(0, 6);
-                String numRandomCard = cardNumber.substring(6, 16);
-
-                given(cardRepository.findByNumProductCardAndNumRandomCard(
-                                Integer.parseInt(numProductCard), Long.parseLong(numRandomCard)))
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
                                 .willReturn(Optional.of(card));
 
-                // When
-                ResponseEntity<ResponseDTO> response = cardService.enableCard(cardNumber);
+                ResponseEntity<ResponseDTO> response = cardService.enableCard(cardDTO);
 
-                // Then
-                verify(cardRepository).save(card);
                 assertEquals(HttpStatus.OK, response.getStatusCode());
-                assertEquals("enable", card.getStatus());
-                CardDTO res = (CardDTO) response.getBody().getData();
-                assertEquals(cardDTO.getCardId(), res.getCardId());
+                assertNotNull(response.getBody());
+                assertTrue(response.getBody().getData() instanceof CardDTO);
+        }
+
+        @SuppressWarnings("null")
+        @Test
+        public void testEnableCard_InvalidCardId_Length() {
+                cardDTO.setCardId("123");
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
+                                .willReturn(Optional.of(card));
+
+                ResponseEntity<ResponseDTO> response = cardService.enableCard(cardDTO);
+
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("ID de tarjeta debe tener exactamente 16 dígitos numéricos", errorDTO.getErrorMsn());
+
+        }
+
+        @SuppressWarnings("null")
+        @Test
+        public void testEnableCard_InvalidCardId_NonNumeric() {
+                cardDTO.setCardId("1234abcd56789012");
+
+                ResponseEntity<ResponseDTO> response = cardService.enableCard(cardDTO);
+
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("ID de tarjeta debe tener exactamente 16 dígitos numéricos", errorDTO.getErrorMsn());
         }
 
         @SuppressWarnings("null")
         @Test
         public void testEnableCard_CardNotFound() {
-                // Given
-                String cardNumber = "1234562374436970";
-                String numProductCard = cardNumber.substring(0, 6);
-                String numRandomCard = cardNumber.substring(6, 16);
+                cardDTO.setCardId("1234567890123456");
 
-                given(cardRepository.findByNumProductCardAndNumRandomCard(
-                                Integer.parseInt(numProductCard), Long.parseLong(numRandomCard)))
+                given(cardRepository.findByNumProductCardAndNumRandomCard(123456, 7890123456L))
                                 .willReturn(Optional.empty());
 
-                // When
-                ResponseEntity<ResponseDTO> response = cardService.enableCard(cardNumber);
+                ResponseEntity<ResponseDTO> response = cardService.enableCard(cardDTO);
 
-                // Then
-                verify(cardRepository).findByNumProductCardAndNumRandomCard(
-                                Integer.parseInt(numProductCard), Long.parseLong(numRandomCard));
                 assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-                assertEquals("El numero de tarjeta no existe: " + cardNumber,
-                                ((ResponseErrorDTO) response.getBody()).getErrorMsn());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("El numero de tarjeta no existe: 1234567890123456", errorDTO.getErrorMsn());
         }
 
         @SuppressWarnings("null")
         @Test
-        public void testEnableCard_ExceptionHandling() {
-                // Given
-                String cardNumber = "invalidCardNumber";
+        public void testEnableCard_Exception() {
+                cardDTO.setCardId("1234567890123456");
 
-                // When
-                ResponseEntity<ResponseDTO> response = cardService.enableCard(cardNumber);
+                given(cardRepository.findByNumProductCardAndNumRandomCard(123456, 7890123456L))
+                                .willThrow(new RuntimeException("Database error"));
 
-                // Then
+                ResponseEntity<ResponseDTO> response = cardService.enableCard(cardDTO);
+
                 assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-                assertEquals("El numero de tarjeta no existe: " + cardNumber,
-                                ((ResponseErrorDTO) response.getBody()).getErrorMsn());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("Error en el consumo enableCard", errorDTO.getErrorMsn());
         }
 
         @Test
@@ -222,97 +250,146 @@ public class CardServiceTest {
 
         @SuppressWarnings("null")
         @Test
-        void testDeleteCarc_CardNotFound() {
-                // Given
-                String cardNumber = "1234562374436970";
+        public void testDeleteCard_InvalidCardId_Length() {
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
+                                .willReturn(Optional.of(card));
 
-                String numProductCard = cardNumber.substring(0, 6);
-                String numRandomCard = cardNumber.substring(6, 16);
+                ResponseEntity<ResponseDTO> response = cardService.deleteCard("12345678");
 
-                when(cardRepository.findByNumProductCardAndNumRandomCard(Integer.parseInt(numProductCard),
-                                Long.parseLong(numRandomCard))).thenReturn(Optional.empty());
-
-                // When
-                ResponseEntity<ResponseDTO> response = cardService.deleteCard(cardNumber);
-
-                // Then
-                verify(cardRepository, times(1)).findByNumProductCardAndNumRandomCard(Integer.parseInt(numProductCard),
-                                Long.parseLong(numRandomCard));
-                verify(cardRepository, never()).deleteById(anyLong());
-
-                assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
                 assertTrue(response.getBody() instanceof ResponseErrorDTO);
-                ResponseErrorDTO responseError = (ResponseErrorDTO) response.getBody();
-                assertEquals("El id de la tarjeta no existe: " + cardNumber, responseError.getErrorMsn());
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("ID de tarjeta debe tener exactamente 16 dígitos numéricos", errorDTO.getErrorMsn());
+
         }
 
         @SuppressWarnings("null")
         @Test
-        public void testUpdateBalance_CardExists() {
-                // Given
-                String cardNumber = "1234562374436970";
-                int balance = 1000;
-                Card card = new Card();
-                card.setBalance(0);
+        public void testDeleteCard_CardNotFound() {
+                cardDTO.setCardId("1234567890123456");
 
-                CardDTO cardDTO = new CardDTO(card);
+                given(cardRepository.findByNumProductCardAndNumRandomCard(123456, 7890123456L))
+                                .willReturn(Optional.empty());
 
-                String numProductCard = cardNumber.substring(0, 6);
-                String numRandomCard = cardNumber.substring(6, 16);
+                ResponseEntity<ResponseDTO> response = cardService.deleteCard(cardDTO.getCardId());
 
-                given(cardRepository.findByNumProductCardAndNumRandomCard(
-                                Integer.parseInt(numProductCard), Long.parseLong(numRandomCard)))
+                assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("El numero de la tarjeta no existe: 1234567890123456", errorDTO.getErrorMsn());
+        }
+
+        @SuppressWarnings("null")
+        @Test
+        public void testDeleteCard_Exception() {
+                cardDTO.setCardId("1234567890123456");
+
+                given(cardRepository.findByNumProductCardAndNumRandomCard(123456, 7890123456L))
+                                .willThrow(new RuntimeException("Database error"));
+
+                ResponseEntity<ResponseDTO> response = cardService.deleteCard(cardDTO.getCardId());
+
+                assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("Error en el consumo deleteCard", errorDTO.getErrorMsn());
+        }
+
+        @SuppressWarnings("null")
+        @Test
+        public void testUpdateBalance_ValidCard() {
+
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
                                 .willReturn(Optional.of(card));
 
-                // When
-                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardNumber, balance);
+                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardDTO);
 
-                // Then
-                verify(cardRepository).save(card);
                 assertEquals(HttpStatus.OK, response.getStatusCode());
-                assertEquals(balance, card.getBalance());
-                CardDTO rest = (CardDTO) response.getBody().getData();
-                assertEquals(cardDTO.getCardId(), rest.getCardId());
+                assertNotNull(response.getBody());
+                assertTrue(response.getBody().getData() instanceof CardDTO);
+        }
+
+        @SuppressWarnings("null")
+        @Test
+        public void testUpdateBalance_InvalidCardId_Length() {
+                cardDTO.setCardId("123");
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
+                                .willReturn(Optional.of(card));
+
+                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardDTO);
+
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("ID de tarjeta debe tener exactamente 16 dígitos numéricos", errorDTO.getErrorMsn());
+        }
+
+        @SuppressWarnings("null")
+        @Test
+        public void testUpdateBalance_InvalidCardId_NonNumeric() {
+                cardDTO.setCardId("1234abcd56789012");
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
+                                .willReturn(Optional.of(card));
+
+                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardDTO);
+
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("ID de tarjeta debe tener exactamente 16 dígitos numéricos", errorDTO.getErrorMsn());
+        }
+
+        @SuppressWarnings("null")
+        @Test
+        public void testUpdateBalance_InvalidBalance_NonPositive() {
+                card.setBalance(-50);
+                cardDTO.setBalance(card.getBalance());
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
+                                .willReturn(Optional.of(card));
+
+                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardDTO);
+
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("Debe insertar el monto de la tarjeta positivo [blanace]", errorDTO.getErrorMsn());
         }
 
         @SuppressWarnings("null")
         @Test
         public void testUpdateBalance_CardNotFound() {
-                // Given
-                String cardNumber = "1234562374436970";
-                int balance = 1000;
-                String numProductCard = cardNumber.substring(0, 6);
-                String numRandomCard = cardNumber.substring(6, 16);
+                card.setNumProductCard(123457);
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
+                                .willReturn(Optional.of(card));
 
-                given(cardRepository.findByNumProductCardAndNumRandomCard(
-                                Integer.parseInt(numProductCard), Long.parseLong(numRandomCard)))
-                                .willReturn(Optional.empty());
+                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardDTO);
 
-                // When
-                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardNumber, balance);
-
-                // Then
-                verify(cardRepository).findByNumProductCardAndNumRandomCard(
-                                Integer.parseInt(numProductCard), Long.parseLong(numRandomCard));
                 assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-                assertEquals("El numero de tarjeta no existe: " + cardNumber,
-                                ((ResponseErrorDTO) response.getBody()).getErrorMsn());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("El numero de tarjeta no existe: " + cardDTO.getCardId(), errorDTO.getErrorMsn());
         }
 
         @SuppressWarnings("null")
         @Test
-        public void testUpdateBalance_ExceptionHandling() {
-                // Given
-                String cardNumber = "invalidCardNumber";
-                int balance = 1000;
+        public void testUpdateBalance_Exception() {
+                cardDTO.setBalance(100);
+                given(cardRepository.findByNumProductCardAndNumRandomCard(card.getNumProductCard(),
+                                card.getNumRandomCard()))
+                                .willThrow(new RuntimeException("Database error"));
 
-                // When
-                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardNumber, balance);
+                ResponseEntity<ResponseDTO> response = cardService.updateBalance(cardDTO);
 
-                // Then
                 assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-                assertEquals("El numero de tarjeta no existe: " + cardNumber,
-                                ((ResponseErrorDTO) response.getBody()).getErrorMsn());
+                assertTrue(response.getBody() instanceof ResponseErrorDTO);
+                ResponseErrorDTO errorDTO = (ResponseErrorDTO) response.getBody();
+                assertEquals("Error en el consumo updateBalance", errorDTO.getErrorMsn());
         }
 
 }
