@@ -1,0 +1,30 @@
+########################################
+########################################
+####### CREAR IMAGEN DE DOQUER   #######
+########################################
+########################################
+
+### 1. Construir la Imagen Docker
+docker build -t bancinc-app:latest .
+
+#### 2. Listar Imágenes Docker
+docker images
+
+### 3. Ejecutar un Contenedor a Partir de la Imagen
+docker run -d -p 9090:9090 --name bancinc-container bancinc-app:latest
+
+### 4. Verificar el Contenedor en Ejecución
+docker ps
+
+### 5. Acceder a la Aplicación
+http://localhost:9090/transaction/1
+
+#### 6. Detener
+docker stop bancinc-container
+
+### 7. Eliminar el Contenedor
+docker rm bancinc-container
+
+### 8. Eliminar la Imagen
+docker rmi bancinc-app:latest
+

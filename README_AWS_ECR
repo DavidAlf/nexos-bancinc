@@ -1,0 +1,24 @@
+########################################
+########################################
+####### SUBIR IMAGEN A AWS ECR   #######
+########################################
+########################################
+
+### 1.Crear Repositorio en ECR
+aws ecr create-repository --repository-name bancinc-app
+
+### 2.Iniciar Sesión en ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 699259401145.dkr.ecr.us-east-1.amazonaws.com
+
+### 3.Construir Imagen Docker
+docker build -t bancinc-app:latest .
+
+### 4.Etiquetar la Imagen Docker
+docker tag bancinc-app:latest 699259401145.dkr.ecr.us-east-1.amazonaws.com/bancinc-app:latest
+
+### 5.Subir la Imagen a ECR
+docker push 699259401145.dkr.ecr.us-east-1.amazonaws.com/bancinc-app:latest
+
+
+
+
