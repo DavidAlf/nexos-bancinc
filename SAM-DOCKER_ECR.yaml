@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy Docker Image to ECS with ECR
+
+Resources:
+  # Repositorio ECR
+  MyECRRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: my-docker-repo
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Expire images older than 30 days",
+                "selection": {
+                  "tagStatus": "any"
+                },
+                "action": {
+                  "type": "expire",
+                  "expiry": {
+                    "days": 30
+                  }
+                }
+              }
+            ]
+          }
+  
+  # Clúster ECS
+  MyECSCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: my-ecs-cluster
+
+  # Definición de tarea ECS
+  MyECSTaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: my-task-definition
+      NetworkMode: bridge
+      ContainerDefinitions:
+        - Name: my-container
+          Image: !Sub '${MyECRRepository.RepositoryUri}:latest'
+          Memory: 512
+          Cpu: 256
+          PortMappings:
+            - ContainerPort: 9090
+              HostPort: 9090
+      RequiresCompatibilities:
+        - EC2
+
+  # Servicio ECS
+  MyECSService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref MyECSCluster
+      ServiceName: my-ecs-service
+      TaskDefinition: !Ref MyECSTaskDefinition
+      DesiredCount: 1
+      LaunchType: EC2
+
+Outputs:
+  ECRRepositoryUri:
+    Description: URI of the ECR repository
+    Value: !Sub '${MyECRRepository.RepositoryUri}'
+
+  ECSClusterName:
+    Description: Name of the ECS Cluster
+    Value: !Ref MyECSCluster
+
+  ECSServiceName:
+    Description: Name of the ECS Service
+    Value: !Ref MyECSService

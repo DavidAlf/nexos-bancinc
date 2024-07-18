@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  # Repositorio ECR para almacenar la imagen Docker
+  MyEcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: my-docker-image-repository
+
+  # Instancia EC2 para ejecutar el contenedor
+  MyEc2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0c55b159cbfafe1f0
+      InstanceType: t2.micro
+      SecurityGroups:
+        - !Ref MyEc2SecurityGroup
+
+  # Grupo de seguridad EC2 para permitir el tráfico
+  MyEc2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref AWS::VPC_ID
+      SecurityGroupIngress:
+        -
+          CidrIp: 0.0.0.0/0
+          Protocol: tcp
+          FromPort: 80
+          ToPort: 80
+
+  # Rol de IAM para EC2 con permisos para ejecutar el contenedor
+  MyEc2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: MyEc2InstanceRole
+
+  # Política de IAM para el rol de EC2
+  MyEc2InstanceRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref MyEc2InstanceRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - ecs:RunTask
+            Resource: !Sub 'arn:aws:ecs:<span class="math-inline">\{AWS\:\:Region\}\:</span>{AWS::AccountId}:cluster/<span class="math-inline">\{MyEcsCluster\}'
+\# Definición de la tarea ECS para ejecutar en EC2
+MyEcsTaskDefinition\:
+Type\: AWS\:\:ECS\:\:TaskDefinition
+Properties\:
+ContainerDefinitions\:
+\-
+Name\: my\-container
+Image\: \!Sub '</span>{AWS::ECR::Repository.RepositoryUri}/<span class="math-inline">\{BranchName\}/</span>{ImageTag}'
+          Essential: true
+
+  # Ejecución de la tarea ECS en la instancia EC2
+  MyEcsRunTask:
+    Type: AWS::ECS::RunTask
+    Properties:
+      Cluster: !Ref MyEcsCluster
+      TaskDefinition: !Ref MyEcsTaskDefinition
+      LaunchType: EC2
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref

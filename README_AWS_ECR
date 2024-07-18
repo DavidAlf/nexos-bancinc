@@ -21,4 +21,7 @@ docker push 699259401145.dkr.ecr.us-east-1.amazonaws.com/bancinc-app:latest
 
 
 
+####
+aws cloudformation create-stack --stack-name bancinc-appk --template-body file://SAM-DOCKER_ECR.yaml --capabilities CAPABILITY_IAM
+
 
